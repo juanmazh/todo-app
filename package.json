@@ -9,7 +9,9 @@
     "client": "cd client && npm run dev",
     "build": "cd client && npm run build",
     "start": "node server/index.js",
-    "install-all": "npm install && cd client && npm install"
+    "install-all": "npm install && cd client && npm install",
+    "render-build": "npm install",
+    "render-start": "node server/index.js"
   },
   "keywords": ["todo", "react", "nodejs", "express"],
   "author": "Tu nombre",

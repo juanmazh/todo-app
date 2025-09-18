@@ -27,7 +27,11 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../client/dist')));
+
+// Solo servir archivos estáticos en desarrollo local
+if (process.env.NODE_ENV !== 'production') {
+  app.use(express.static(path.join(__dirname, '../client/dist')));
+}
 
 // Ruta de salud para verificar que el servidor funciona
 app.get('/api/health', (req, res) => {
@@ -41,10 +45,16 @@ app.get('/api/health', (req, res) => {
 // Rutas de la API
 app.use('/api/todos', todoRoutes);
 
-// Servir la aplicación React en producción (solo si existe)
+// En producción, solo manejar rutas de API
 if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+  app.get('/', (req, res) => {
+    res.json({ 
+      message: 'API del TO-DO App funcionando correctamente',
+      endpoints: {
+        health: '/api/health',
+        todos: '/api/todos'
+      }
+    });
   });
 }
 
