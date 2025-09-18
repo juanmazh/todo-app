@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Filter, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import TodoList from './components/TodoList';
 import TodoForm from './components/TodoForm';
 import FilterBar from './components/FilterBar';
-import { Todo } from './types/Todo';
+import type { Todo } from './types/Todo';
 import { todoService } from './services/todoService';
 import './App.css';
 
@@ -15,8 +15,8 @@ function App() {
   const [showForm, setShowForm] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const [filter, setFilter] = useState({
-    status: 'all',
-    priority: 'all',
+    status: 'all' as 'all' | 'completed' | 'pending',
+    priority: 'all' as 'all' | 'low' | 'medium' | 'high',
     category: 'all',
     search: ''
   });
@@ -75,7 +75,7 @@ function App() {
     setFilteredTodos(filtered);
   };
 
-  const handleCreateTodo = async (todoData: Omit<Todo, 'id' | 'created_at' | 'updated_at'>) => {
+  const handleCreateTodo = async (todoData: { title: string; description: string; priority: 'low' | 'medium' | 'high'; category: string }) => {
     try {
       const newTodo = await todoService.createTodo(todoData);
       setTodos(prev => [newTodo, ...prev]);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Save, Calendar, Tag, AlertTriangle } from 'lucide-react';
-import { Todo, TodoFormData } from '../types/Todo';
+import type { Todo, TodoFormData } from '../types/Todo';
 import { CATEGORIES, PRIORITIES } from '../constants/categories';
 
 interface TodoFormProps {

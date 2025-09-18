@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Filter, CheckCircle, Clock, AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { FilterState, Todo } from '../types/Todo';
+import type { FilterState, Todo } from '../types/Todo';
 import { CATEGORIES } from '../constants/categories';
 
 interface FilterBarProps {

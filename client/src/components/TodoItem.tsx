@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Edit, Trash2, Calendar, Tag, AlertTriangle, AlertCircle, CheckCircle } from 'lucide-react';
-import { Todo } from '../types/Todo';
+import type { Todo } from '../types/Todo';
 
 interface TodoItemProps {
   todo: Todo;

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Todo, TodoFormData } from '../types/Todo';
+import type { Todo, TodoFormData } from '../types/Todo';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://todo-app-backend.onrender.com/api';
 

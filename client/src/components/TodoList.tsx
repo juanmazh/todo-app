@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Edit, Trash2, Clock, AlertCircle, CheckCircle } from 'lucide-react';
-import { Todo } from '../types/Todo';
+import { Clock, AlertCircle, CheckCircle } from 'lucide-react';
+import type { Todo } from '../types/Todo';
 import TodoItem from './TodoItem';
 
 interface TodoListProps {
