@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Todo, TodoFormData } from '../types/Todo';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://todo-app-backend.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
