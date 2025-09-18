@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: todo-app-backend
+    env: node
+    buildCommand: npm install
+    startCommand: node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /api/todos
+
+  - type: web
+    name: todo-app-frontend
+    env: static
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: client/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://todo-app-backend.onrender.com/api
