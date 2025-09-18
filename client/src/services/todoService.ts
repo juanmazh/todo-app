@@ -8,7 +8,20 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10 segundos de timeout
 });
+
+// Interceptor para manejar errores
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('Error en la API:', error);
+    if (error.code === 'ERR_NETWORK') {
+      throw new Error('No se puede conectar con el servidor. Verifica que el backend esté funcionando.');
+    }
+    throw error;
+  }
+);
 
 export const todoService = {
   // Obtener todas las tareas
