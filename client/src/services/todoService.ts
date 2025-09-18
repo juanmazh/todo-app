@@ -1,7 +1,21 @@
 import axios from 'axios';
 import type { Todo, TodoFormData } from '../types/Todo';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://todo-app-backend.onrender.com/api';
+// Detectar automáticamente la URL del backend
+const getApiUrl = () => {
+  // Si estamos en desarrollo local
+  if (window.location.hostname === 'localhost') {
+    return 'http://localhost:5000/api';
+  }
+  
+  // Si estamos en Render, usar la variable de entorno o la URL por defecto
+  return import.meta.env.VITE_API_URL || 'https://todo-app-backend-yadb.onrender.com/api';
+};
+
+const API_BASE_URL = getApiUrl();
+
+// Log para debug
+console.log('🔗 API URL configurada:', API_BASE_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
