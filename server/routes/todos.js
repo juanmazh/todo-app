@@ -4,34 +4,31 @@ const { getDatabase } = require('../database/connection');
 
 const router = express.Router();
 
-// Middleware para manejar CORS en las rutas
-router.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  
-  if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
-  } else {
-    next();
-  }
+// Middleware para manejar OPTIONS requests
+router.options('*', (req, res) => {
+  res.sendStatus(200);
 });
 
 // GET /api/todos - Obtener todas las tareas
 router.get('/', (req, res) => {
-  const db = getDatabase();
-  
-  db.all('SELECT * FROM todos ORDER BY created_at DESC', (err, rows) => {
-    if (err) {
-      console.error('Error al obtener tareas:', err);
-      res.status(500).json({ error: 'Error interno del servidor' });
-      return;
-    }
+  try {
+    const db = getDatabase();
     
-    res.json(rows);
-  });
-  
-  db.close();
+    db.all('SELECT * FROM todos ORDER BY created_at DESC', (err, rows) => {
+      if (err) {
+        console.error('Error al obtener tareas:', err);
+        res.status(500).json({ error: 'Error interno del servidor', details: err.message });
+        return;
+      }
+      
+      res.json(rows || []);
+    });
+    
+    db.close();
+  } catch (error) {
+    console.error('Error en GET /api/todos:', error);
+    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+  }
 });
 
 // GET /api/todos/:id - Obtener una tarea específica

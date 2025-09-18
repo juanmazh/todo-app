@@ -30,9 +30,22 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     console.error('Error en la API:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      url: error.config?.url
+    });
+    
     if (error.code === 'ERR_NETWORK') {
-      throw new Error('No se puede conectar con el servidor. Verifica que el backend esté funcionando.');
+      throw new Error(`No se puede conectar con el servidor en ${API_BASE_URL}. Verifica que el backend esté funcionando.`);
     }
+    
+    if (error.response?.status === 503) {
+      throw new Error('El servidor está temporalmente no disponible. Intenta de nuevo en unos minutos.');
+    }
+    
     throw error;
   }
 );
