@@ -74,9 +74,9 @@ Una aplicación moderna de gestión de tareas construida con **Node.js**, **Expr
    # Terminal 2: npm run client
    ```
 
-6. **Acceder a la aplicación**
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:5000
+6. **Acceder a la aplicación desplegada en vercel**
+   - Frontend: https://todo-app-frontend-c81g.onrender.com/
+   - Backend API: https://todo-app-backend-yadb.onrender.com
 
 ## 📁 Estructura del Proyecto
 
@@ -210,7 +210,7 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 
 ## 📞 Soporte
 
-Si tienes preguntas o necesitas ayuda, no dudes en abrir un issue en el repositorio.
+Si tienes preguntas o necesitas ayuda, no dudes en abrir un issue en el repositorio o contactame al correo juanmazh.dev@gmail.com.
 
 ---
 

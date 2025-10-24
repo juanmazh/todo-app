@@ -17,7 +17,7 @@ const getApiUrl = () => {
     console.warn('⚠️ VITE_API_URL no está definida. Usando URL por defecto de fallback. Por favor configura VITE_API_URL en Vercel/entorno de producción.');
   }
 
-  return envUrl || 'https://todo-app-backend.onrender.com/api';
+  return envUrl || 'https://todo-app-backend-yadb.onrender.com/api';
 };
 
 const API_BASE_URL = getApiUrl();
