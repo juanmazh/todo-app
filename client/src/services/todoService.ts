@@ -28,10 +28,15 @@ const getApiUrl = () => {
 const API_BASE_URL = getApiUrl();
 
 // Log para debug
-console.log('🔗 API URL configurada:', API_BASE_URL);
+// Asegurar que la URL base que usará axios incluya `/api`.
+const baseCandidate = (API_BASE_URL || '').replace(/\/+$/g, '');
+const AXIOS_BASE_URL = baseCandidate.endsWith('/api') ? baseCandidate : `${baseCandidate}/api`;
+
+console.log('🔗 API URL configurada (raw):', API_BASE_URL);
+console.log('🔧 AXIOS base URL normalizada:', AXIOS_BASE_URL);
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: AXIOS_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
