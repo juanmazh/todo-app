@@ -4,6 +4,7 @@ import { Plus, Search } from 'lucide-react';
 import TodoList from './components/TodoList';
 import TodoForm from './components/TodoForm';
 import FilterBar from './components/FilterBar';
+import Footer from './components/Footer';
 import type { Todo } from './types/Todo';
 import { todoService } from './services/todoService';
 import './App.css';
@@ -216,6 +217,7 @@ function App() {
           </motion.div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
