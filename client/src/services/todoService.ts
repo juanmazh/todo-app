@@ -8,8 +8,16 @@ const getApiUrl = () => {
     return 'http://localhost:5000/api';
   }
   
-  // Si estamos en Render, usar la variable de entorno o la URL por defecto
-  return import.meta.env.VITE_API_URL || 'https://todo-app-backend-yadb.onrender.com/api';
+  // En producción: preferir la variable de entorno VITE_API_URL.
+  // Si no existe, registrar un warning y usar un fallback conocido.
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (!envUrl) {
+    // Nota: hacemos un fallback por compatibilidad, pero lo ideal es
+    // configurar VITE_API_URL en Vercel (o la plataforma que use el frontend).
+    console.warn('⚠️ VITE_API_URL no está definida. Usando URL por defecto de fallback. Por favor configura VITE_API_URL en Vercel/entorno de producción.');
+  }
+
+  return envUrl || 'https://todo-app-backend.onrender.com/api';
 };
 
 const API_BASE_URL = getApiUrl();
@@ -29,14 +37,25 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('Error en la API:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      url: error.config?.url
-    });
+    // Log más detallado para diagnosticar CORS/503/NetworkError
+    try {
+      const details = {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        // URL completa a la que se intentó conectar
+        requestUrl: error.request?.responseURL || `${API_BASE_URL}${error.config?.url}`,
+        configUrl: error.config?.url,
+        // Información serializada por axios si está disponible
+        errorJson: typeof error.toJSON === 'function' ? error.toJSON() : undefined
+      };
+
+      console.error('Error en la API:', error);
+      console.error('Error details:', details);
+    } catch (logErr) {
+      console.error('Error al intentar loggear el error de la API:', logErr, error);
+    }
     
     if (error.code === 'ERR_NETWORK') {
       throw new Error(`No se puede conectar con el servidor en ${API_BASE_URL}. Verifica que el backend esté funcionando.`);
