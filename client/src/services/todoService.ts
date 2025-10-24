@@ -19,8 +19,6 @@ const getApiUrl = () => {
     return normalized;
   }
 
-  // Nota: hacemos un fallback por compatibilidad, pero lo ideal es
-  // configurar VITE_API_URL en Vercel (o la plataforma que use el frontend).
   console.warn('⚠️ VITE_API_URL no está definida. Usando URL por defecto de fallback. Por favor configura VITE_API_URL en Vercel/entorno de producción.');
   return 'https://todo-app-backend-yadb.onrender.com/api';
 };
