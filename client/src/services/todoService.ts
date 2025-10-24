@@ -9,15 +9,20 @@ const getApiUrl = () => {
   }
   
   // En producción: preferir la variable de entorno VITE_API_URL.
-  // Si no existe, registrar un warning y usar un fallback conocido.
-  const envUrl = import.meta.env.VITE_API_URL;
-  if (!envUrl) {
-    // Nota: hacemos un fallback por compatibilidad, pero lo ideal es
-    // configurar VITE_API_URL en Vercel (o la plataforma que use el frontend).
-    console.warn('⚠️ VITE_API_URL no está definida. Usando URL por defecto de fallback. Por favor configura VITE_API_URL en Vercel/entorno de producción.');
+  // Normalizar la URL: eliminar slashes finales y asegurar que termine en /api.
+  const rawEnvUrl = import.meta.env.VITE_API_URL;
+  if (rawEnvUrl) {
+    // Eliminar slashes finales
+    const trimmed = rawEnvUrl.replace(/\/+$/g, '');
+    const normalized = trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+    console.info('🔧 VITE_API_URL (raw):', rawEnvUrl, '→ normalized:', normalized);
+    return normalized;
   }
 
-  return envUrl || 'https://todo-app-backend-yadb.onrender.com/api';
+  // Nota: hacemos un fallback por compatibilidad, pero lo ideal es
+  // configurar VITE_API_URL en Vercel (o la plataforma que use el frontend).
+  console.warn('⚠️ VITE_API_URL no está definida. Usando URL por defecto de fallback. Por favor configura VITE_API_URL en Vercel/entorno de producción.');
+  return 'https://todo-app-backend-yadb.onrender.com/api';
 };
 
 const API_BASE_URL = getApiUrl();
