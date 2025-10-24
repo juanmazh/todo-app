@@ -16,4 +16,4 @@ services:
     staticPublishPath: client/dist
     envVars:
       - key: VITE_API_URL
-        value: https://todo-app-backend.onrender.com/api
+          value: https://todo-app-backend-yadb.onrender.com/api
