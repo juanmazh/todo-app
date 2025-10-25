@@ -2,11 +2,12 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { getDatabase } = require('../database/connection');
+const { pool } = require('../database/pgConnection');
 require('dotenv').config();
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
+
 
 // Registro: POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -17,48 +18,31 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    const db = getDatabase();
-
     // Verificar si ya existe el usuario
-    db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
-      if (err) {
-        console.error('Error en registro:', err);
-        res.status(500).json({ error: 'Error interno del servidor' });
-        return;
-      }
+    const userCheck = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    if (userCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'El usuario ya existe' });
+    }
 
-      if (row) {
-        res.status(409).json({ error: 'El usuario ya existe' });
-        db.close();
-        return;
-      }
+    const id = uuidv4();
+    const passwordHash = bcrypt.hashSync(password, 10);
 
-      const id = uuidv4();
-      const passwordHash = bcrypt.hashSync(password, 10);
+    await pool.query(
+      'INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)',
+      [id, username, passwordHash]
+    );
 
-      const stmt = db.prepare('INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)');
-      stmt.run(id, username, passwordHash, function(insertErr) {
-        if (insertErr) {
-          console.error('Error al crear usuario:', insertErr);
-          res.status(500).json({ error: 'Error interno al crear usuario' });
-          return;
-        }
-
-        const token = jwt.sign({ id, username }, JWT_SECRET, { expiresIn: '7d' });
-        res.status(201).json({ token, user: { id, username } });
-      });
-
-      stmt.finalize();
-      db.close();
-    });
+    const token = jwt.sign({ id, username }, JWT_SECRET, { expiresIn: '7d' });
+    res.status(201).json({ token, user: { id, username } });
   } catch (error) {
     console.error('Error en POST /auth/register:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
+
 // Login: POST /api/auth/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   console.log('🔐 POST /api/auth/login - body:', req.body);
@@ -68,37 +52,24 @@ router.post('/login', (req, res) => {
   }
 
   try {
-    const db = getDatabase();
-    db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
-      if (err) {
-        console.error('Error en login:', err);
-        res.status(500).json({ error: 'Error interno del servidor' });
-        db.close();
-        return;
-      }
+    const userResult = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    const user = userResult.rows[0];
+    if (!user) {
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
 
-      if (!user) {
-        res.status(401).json({ error: 'Credenciales inválidas' });
-        db.close();
-        return;
-      }
+    const matches = bcrypt.compareSync(password, user.password_hash);
+    if (!matches) {
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
 
-      const matches = bcrypt.compareSync(password, user.password_hash);
-      if (!matches) {
-        res.status(401).json({ error: 'Credenciales inválidas' });
-        db.close();
-        return;
-      }
-
-      try {
-        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-        res.json({ token, user: { id: user.id, username: user.username } });
-      } catch (jwtErr) {
-        console.error('Error generando JWT en login:', jwtErr);
-        res.status(500).json({ error: 'Error generando token' });
-      }
-      db.close();
-    });
+    try {
+      const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+      res.json({ token, user: { id: user.id, username: user.username } });
+    } catch (jwtErr) {
+      console.error('Error generando JWT en login:', jwtErr);
+      res.status(500).json({ error: 'Error generando token' });
+    }
   } catch (error) {
     console.error('Error en POST /auth/login:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
