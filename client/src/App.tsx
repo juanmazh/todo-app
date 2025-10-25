@@ -102,6 +102,7 @@ function App() {
 
   const handleAuth = (userObj: { id: string; username: string }) => {
     setUser(userObj);
+    loadTodos(); // Cargar tareas del usuario tras login
   };
 
   const handleLogout = () => {
