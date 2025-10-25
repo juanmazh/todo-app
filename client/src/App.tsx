@@ -12,7 +12,6 @@ import './App.css';
 
 function App() {
   const [user, setUser] = useState<{ id: string; username: string } | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [todos, setTodos] = useState<Todo[]>([]);
   const [filteredTodos, setFilteredTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +32,6 @@ function App() {
     if (rawUser && rawToken) {
       try {
         setUser(JSON.parse(rawUser));
-        setToken(rawToken);
       } catch (e) {
         localStorage.removeItem('user');
         localStorage.removeItem('token');
@@ -104,14 +102,12 @@ function App() {
 
   const handleAuth = (userObj: { id: string; username: string }, tok: string) => {
     setUser(userObj);
-    setToken(tok);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
-    setToken(null);
     setTodos([]);
   };
 

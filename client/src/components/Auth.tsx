@@ -3,7 +3,7 @@ import { User, Lock, CheckCircle, ArrowRight } from 'lucide-react';
 import { authService } from '../services/authService';
 
 interface AuthProps {
-  onAuth: (user: { id: string; username: string }, token: string) => void;
+  onAuth: (user: { id: string; username: string }) => void;
 }
 
 const Auth: React.FC<AuthProps> = ({ onAuth }) => {
@@ -24,9 +24,9 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
         : await authService.register(username, password);
 
       const { token, user } = data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      onAuth(user, token);
+  localStorage.setItem('token', token);
+  localStorage.setItem('user', JSON.stringify(user));
+  onAuth(user);
     } catch (err: any) {
       console.error('Auth error (detailed):', err);
       const serverMsg = err?.response?.data?.error || err?.response?.data || null;
