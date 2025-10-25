@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const todoRoutes = require('./routes/todos');
+const authRoutes = require('./routes/auth');
 const { initDatabase } = require('./database/init');
 
 const app = express();
@@ -29,6 +30,7 @@ app.get('/api/health', (req, res) => {
 
 // Rutas de la API
 app.use('/api/todos', todoRoutes);
+app.use('/api/auth', authRoutes);
 
 // Ruta principal
 app.get('/', (req, res) => {

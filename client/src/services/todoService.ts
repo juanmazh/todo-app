@@ -3,9 +3,9 @@ import type { Todo, TodoFormData } from '../types/Todo';
 
 // Detectar automáticamente la URL del backend
 const getApiUrl = () => {
-  // Si estamos en desarrollo local
+  // Si estamos en desarrollo local, usar ruta relativa para que Vite proxy la reenvíe
   if (window.location.hostname === 'localhost') {
-    return 'http://localhost:5000/api';
+    return '/api';
   }
   
   // En producción: preferir la variable de entorno VITE_API_URL.
@@ -25,10 +25,8 @@ const getApiUrl = () => {
 
 const API_BASE_URL = getApiUrl();
 
-// Log para debug
-// Asegurar que la URL base que usará axios incluya `/api`.
-const baseCandidate = (API_BASE_URL || '').replace(/\/+$/g, '');
-const AXIOS_BASE_URL = baseCandidate.endsWith('/api') ? baseCandidate : `${baseCandidate}/api`;
+// Normalizar la URL base (debería incluir /api ya si VITE_API_URL fue configurada)
+const AXIOS_BASE_URL = (API_BASE_URL || '').replace(/\/+$/g, '');
 
 console.log('🔗 API URL configurada (raw):', API_BASE_URL);
 console.log('🔧 AXIOS base URL normalizada:', AXIOS_BASE_URL);
@@ -76,6 +74,19 @@ api.interceptors.response.use(
     throw error;
   }
 );
+
+// Interceptor para enviar Authorization header si hay token en localStorage
+api.interceptors.request.use((config) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (token && config.headers) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return config;
+}, (error) => Promise.reject(error));
 
 export const todoService = {
   // Obtener todas las tareas

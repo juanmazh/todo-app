@@ -1,6 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { getDatabase } = require('../database/connection');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -9,21 +10,22 @@ router.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
-// GET /api/todos - Obtener todas las tareas
-router.get('/', (req, res) => {
+// GET /api/todos - Obtener todas las tareas del usuario autenticado
+router.get('/', authenticateToken, (req, res) => {
   try {
     const db = getDatabase();
-    
-    db.all('SELECT * FROM todos ORDER BY created_at DESC', (err, rows) => {
+    const userId = req.user.id;
+
+    db.all('SELECT * FROM todos WHERE user_id = ? ORDER BY created_at DESC', [userId], (err, rows) => {
       if (err) {
         console.error('Error al obtener tareas:', err);
         res.status(500).json({ error: 'Error interno del servidor', details: err.message });
         return;
       }
-      
+
       res.json(rows || []);
     });
-    
+
     db.close();
   } catch (error) {
     console.error('Error en GET /api/todos:', error);
@@ -32,52 +34,54 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/todos/:id - Obtener una tarea específica
-router.get('/:id', (req, res) => {
+router.get('/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
   const db = getDatabase();
-  
-  db.get('SELECT * FROM todos WHERE id = ?', [id], (err, row) => {
+  const userId = req.user.id;
+
+  db.get('SELECT * FROM todos WHERE id = ? AND user_id = ?', [id, userId], (err, row) => {
     if (err) {
       console.error('Error al obtener tarea:', err);
       res.status(500).json({ error: 'Error interno del servidor' });
       return;
     }
-    
+
     if (!row) {
       res.status(404).json({ error: 'Tarea no encontrada' });
       return;
     }
-    
+
     res.json(row);
   });
-  
+
   db.close();
 });
 
 // POST /api/todos - Crear una nueva tarea
-router.post('/', (req, res) => {
+router.post('/', authenticateToken, (req, res) => {
   const { title, description, priority = 'medium', category = 'general' } = req.body;
-  
+  const userId = req.user.id;
+
   if (!title || title.trim() === '') {
     res.status(400).json({ error: 'El título es requerido' });
     return;
   }
-  
+
   const id = uuidv4();
   const db = getDatabase();
-  
+
   const stmt = db.prepare(`
-    INSERT INTO todos (id, title, description, priority, category)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO todos (id, title, description, priority, category, user_id)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
-  
-  stmt.run(id, title.trim(), description?.trim() || '', priority, category, function(err) {
+
+  stmt.run(id, title.trim(), description?.trim() || '', priority, category, userId, function(err) {
     if (err) {
       console.error('Error al crear tarea:', err);
       res.status(500).json({ error: 'Error interno del servidor' });
       return;
     }
-    
+
     res.status(201).json({
       id,
       title: title.trim(),
@@ -85,21 +89,23 @@ router.post('/', (req, res) => {
       completed: false,
       priority,
       category,
+      user_id: userId,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
   });
-  
+
   stmt.finalize();
   db.close();
 });
 
 // PUT /api/todos/:id - Actualizar una tarea
-router.put('/:id', (req, res) => {
+router.put('/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
   const { title, description, completed, priority, category } = req.body;
   
   const db = getDatabase();
+  const userId = req.user.id;
   
   // Construir la consulta dinámicamente basada en los campos proporcionados
   const updates = [];
@@ -139,8 +145,10 @@ router.put('/:id', (req, res) => {
   updates.push('updated_at = CURRENT_TIMESTAMP');
   values.push(id);
   
-  const query = `UPDATE todos SET ${updates.join(', ')} WHERE id = ?`;
-  
+  // Asegurar que la actualización sólo afecta a la tarea del usuario autenticado
+  const query = `UPDATE todos SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`;
+  values.push(userId);
+
   db.run(query, values, function(err) {
     if (err) {
       console.error('Error al actualizar tarea:', err);
@@ -154,7 +162,7 @@ router.put('/:id', (req, res) => {
     }
     
     // Obtener la tarea actualizada
-    db.get('SELECT * FROM todos WHERE id = ?', [id], (err, row) => {
+    db.get('SELECT * FROM todos WHERE id = ? AND user_id = ?', [id, userId], (err, row) => {
       if (err) {
         console.error('Error al obtener tarea actualizada:', err);
         res.status(500).json({ error: 'Error interno del servidor' });
@@ -169,25 +177,26 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/todos/:id - Eliminar una tarea
-router.delete('/:id', (req, res) => {
+router.delete('/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
+  const userId = req.user.id;
   const db = getDatabase();
-  
-  db.run('DELETE FROM todos WHERE id = ?', [id], function(err) {
+
+  db.run('DELETE FROM todos WHERE id = ? AND user_id = ?', [id, userId], function(err) {
     if (err) {
       console.error('Error al eliminar tarea:', err);
       res.status(500).json({ error: 'Error interno del servidor' });
       return;
     }
-    
+
     if (this.changes === 0) {
       res.status(404).json({ error: 'Tarea no encontrada' });
       return;
     }
-    
+
     res.json({ message: 'Tarea eliminada correctamente' });
   });
-  
+
   db.close();
 });
 

@@ -5,11 +5,14 @@ import TodoList from './components/TodoList';
 import TodoForm from './components/TodoForm';
 import FilterBar from './components/FilterBar';
 import Footer from './components/Footer';
+import Auth from './components/Auth';
 import type { Todo } from './types/Todo';
 import { todoService } from './services/todoService';
 import './App.css';
 
 function App() {
+  const [user, setUser] = useState<{ id: string; username: string } | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [todos, setTodos] = useState<Todo[]>([]);
   const [filteredTodos, setFilteredTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +27,19 @@ function App() {
 
   // Cargar tareas al montar el componente
   useEffect(() => {
+    // Cargar sesión si existe
+    const rawUser = localStorage.getItem('user');
+    const rawToken = localStorage.getItem('token');
+    if (rawUser && rawToken) {
+      try {
+        setUser(JSON.parse(rawUser));
+        setToken(rawToken);
+      } catch (e) {
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
+    }
+
     loadTodos();
   }, []);
 
@@ -86,6 +102,19 @@ function App() {
     }
   };
 
+  const handleAuth = (userObj: { id: string; username: string }, tok: string) => {
+    setUser(userObj);
+    setToken(tok);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    setToken(null);
+    setTodos([]);
+  };
+
   const handleUpdateTodo = async (id: string, updates: Partial<Todo>) => {
     try {
       const updatedTodo = await todoService.updateTodo(id, updates);
@@ -128,6 +157,14 @@ function App() {
     setEditingTodo(null);
   };
 
+  if (!user) {
+    return (
+      <div className="app">
+        <Auth onAuth={handleAuth} />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <motion.header 
@@ -146,8 +183,11 @@ function App() {
             📝 Mi Lista de Tareas
           </motion.h1>
           <p className="app-subtitle">
-            Tu herramienta personal para la productividad
+            Tu herramienta personal para la productividad — <small>usuario: {user.username}</small>
           </p>
+        </div>
+        <div className="header-actions">
+          <button className="btn btn-ghost" onClick={handleLogout}>Cerrar sesión</button>
         </div>
       </motion.header>
 
