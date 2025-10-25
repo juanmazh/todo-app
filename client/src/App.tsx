@@ -100,7 +100,7 @@ function App() {
     }
   };
 
-  const handleAuth = (userObj: { id: string; username: string }, tok: string) => {
+  const handleAuth = (userObj: { id: string; username: string }) => {
     setUser(userObj);
   };
 
