@@ -1,66 +1,117 @@
-import axios from 'axios';
+import { createClient } from '@supabase/supabase-js';
 
-// Detectar URL de API: en desarrollo usamos la ruta relativa '/api' (Vite proxy).
-// En producción preferimos VITE_API_URL y normalizamos para que termine en /api.
-const getApiUrl = () => {
-  if (window.location.hostname === 'localhost') return '/api';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_KEY;
 
-  const rawEnvUrl = import.meta.env.VITE_API_URL;
-  if (rawEnvUrl) {
-    const trimmed = rawEnvUrl.replace(/\/+$/g, '');
-    return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false
   }
-
-  return 'https://todo-app-backend-yadb.onrender.com/api';
-};
-
-const API_BASE = getApiUrl().replace(/\/+$/g, '');
-
-const api = axios.create({
-  baseURL: API_BASE,
-  headers: { 'Content-Type': 'application/json' },
-  timeout: 10000
 });
-
-// Mejor logging para detectar `Network Error` y CORS
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    try {
-      console.error('AuthService - API error details:', {
-        message: error.message,
-        code: error.code,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        requestUrl: error.config?.url ? `${API_BASE}${error.config.url}` : API_BASE,
-        configUrl: error.config?.url,
-        body: error.config?.data,
-      });
-    } catch (logErr) {
-      console.error('Error al loggear error de authService', logErr);
-    }
-
-    if (error.code === 'ERR_NETWORK') {
-      throw new Error(`No se puede conectar con el servidor en ${API_BASE}. Verifica que el backend esté funcionando y que no haya problemas de CORS.`);
-    }
-
-    throw error;
-  }
-);
 
 export const authService = {
   async register(username: string, password: string) {
-    const resp = await api.post('/auth/register', { username, password });
-    return resp.data; // { token, user }
+    try {
+      // Verificar si el usuario ya existe
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('username')
+        .eq('username', username)
+        .single();
+
+      if (existingUser) {
+        throw new Error('El usuario ya existe');
+      }
+
+      // Registrar usuario en Supabase Auth
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: `${username}@example.com`,
+        password: password
+      });
+
+      if (signUpError || !data.user) throw signUpError || new Error('Error al crear usuario');
+
+      // Crear registro en la tabla users
+      const { data: newUser, error: insertError } = await supabase
+        .from('users')
+        .insert([{
+          id: data.user.id,
+          username: username,
+          created_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (insertError || !newUser) throw insertError || new Error('Error al crear usuario en la base de datos');
+
+      // Obtener la sesión
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) throw sessionError || new Error('Error al obtener la sesión');
+
+      localStorage.setItem('token', sessionData.session.access_token);
+      localStorage.setItem('user', JSON.stringify({
+        id: newUser.id,
+        username: newUser.username
+      }));
+
+      return {
+        user: {
+          id: newUser.id,
+          username: newUser.username
+        },
+        access_token: sessionData.session.access_token
+      };
+    } catch (error) {
+      console.error('Error en registro:', error);
+      throw error;
+    }
   },
 
   async login(username: string, password: string) {
-    const resp = await api.post('/auth/login', { username, password });
-    return resp.data; // { token, user }
+    try {
+      // Iniciar sesión en Supabase
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: `${username}@example.com`,
+        password: password
+      });
+
+      if (signInError || !data.session || !data.user) {
+        throw new Error('Credenciales inválidas');
+      }
+
+      // Obtener datos del usuario
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id, username')
+        .eq('id', data.user.id)
+        .single();
+
+      if (userError || !userData) throw userError || new Error('Usuario no encontrado');
+
+      localStorage.setItem('token', data.session.access_token);
+      localStorage.setItem('user', JSON.stringify({
+        id: userData.id,
+        username: userData.username
+      }));
+
+      return {
+        user: {
+          id: userData.id,
+          username: userData.username
+        },
+        access_token: data.session.access_token
+      };
+    } catch (error) {
+      console.error('Error en login:', error);
+      throw error;
+    }
   },
 
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    supabase.auth.signOut();
   }
 };

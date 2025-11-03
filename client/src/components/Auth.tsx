@@ -23,10 +23,10 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
         ? await authService.login(username, password)
         : await authService.register(username, password);
 
-      const { token, user } = data;
-  localStorage.setItem('token', token);
-  localStorage.setItem('user', JSON.stringify(user));
-  onAuth(user);
+      const { access_token, user } = data;
+      localStorage.setItem('token', access_token);
+      localStorage.setItem('user', JSON.stringify(user));
+      onAuth(user);
     } catch (err: any) {
       console.error('Auth error (detailed):', err);
       const serverMsg = err?.response?.data?.error || err?.response?.data || null;
