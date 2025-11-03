@@ -1,11 +1,7 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const supabase = require('../config/supabase');
-require('dotenv').config();
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
 
 // Registro: POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -16,43 +12,51 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    // Verificar si ya existe el usuario
-    const { data: existingUser, error: checkError } = await supabase
+    // Verificar si el usuario ya existe
+    const { data: existingUser } = await supabase
       .from('users')
       .select('username')
       .eq('username', username)
       .single();
 
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 es "no se encontró ningún resultado"
-      throw checkError;
-    }
-
     if (existingUser) {
       return res.status(409).json({ error: 'El usuario ya existe' });
     }
 
-    // Crear nuevo usuario
-    const passwordHash = await bcrypt.hash(password, 10);
-    
-    const { data: user, error: createError } = await supabase
+    // Registrar usuario en Supabase Auth
+    const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+      email: `${username}@example.com`,
+      password: password
+    });
+
+    if (signUpError) throw signUpError;
+
+    // Crear registro en la tabla users
+    const { data: newUser, error: insertError } = await supabase
       .from('users')
-      .insert([{ username, password_hash: passwordHash }])
+      .insert([{
+        id: user.id,
+        username: username,
+        created_at: new Date().toISOString()
+      }])
       .select()
       .single();
 
-    if (createError) throw createError;
+    if (insertError) throw insertError;
 
-    const token = jwt.sign(
-      { id: user.id, username: user.username },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // Obtener la sesión
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
 
     res.status(201).json({
-      token,
-      user: { id: user.id, username: user.username }
+      user: {
+        id: newUser.id,
+        username: newUser.username
+      },
+      access_token: session.access_token
     });
   } catch (error) {
+    console.error('Error en registro:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
@@ -66,37 +70,34 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    // Buscar usuario por username
-    const { data: user, error: searchError } = await supabase
+    // Iniciar sesión en Supabase
+    const { data: { session }, error: signInError } = await supabase.auth.signInWithPassword({
+      email: `${username}@example.com`,
+      password: password
+    });
+
+    if (signInError) {
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
+
+    // Obtener datos del usuario
+    const { data: user, error: userError } = await supabase
       .from('users')
-      .select('*')
-      .eq('username', username)
+      .select('id, username')
+      .eq('id', session.user.id)
       .single();
 
-    if (searchError) throw searchError;
-
-    if (!user) {
-      return res.status(401).json({ error: 'Credenciales inválidas' });
-    }
-
-    // Verificar contraseña
-    const matches = await bcrypt.compare(password, user.password_hash);
-    if (!matches) {
-      return res.status(401).json({ error: 'Credenciales inválidas' });
-    }
-
-    // Generar token
-    const token = jwt.sign(
-      { id: user.id, username: user.username },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    if (userError) throw userError;
 
     res.json({
-      token,
-      user: { id: user.id, username: user.username }
+      user: {
+        id: user.id,
+        username: user.username
+      },
+      access_token: session.access_token
     });
   } catch (error) {
+    console.error('Error en login:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

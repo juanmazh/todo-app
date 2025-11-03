@@ -1,7 +1,4 @@
-const jwt = require('jsonwebtoken');
 const supabase = require('../config/supabase');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
 
 const authenticateToken = async (req, res, next) => {
   try {
@@ -11,23 +8,32 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ error: 'Token no proporcionado' });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
+    // Configurar el token para esta petición
+    supabase.auth.setSession(token);
 
-    // Verificar que el usuario existe en Supabase
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, username')
-      .eq('id', decoded.id)
-      .single();
+    // Verificar el token con Supabase
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (error || !user) {
-      return res.status(401).json({ error: 'No autorizado' });
+    if (authError || !user) {
+      return res.status(401).json({ error: 'Token inválido' });
     }
 
-    req.user = user;
+    // Obtener datos del usuario de nuestra tabla
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, username')
+      .eq('id', user.id)
+      .single();
+
+    if (userError || !userData) {
+      return res.status(401).json({ error: 'Usuario no encontrado' });
+    }
+
+    req.user = userData;
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Token inválido' });
+    console.error('Error de autenticación:', error);
+    res.status(401).json({ error: 'Error de autenticación' });
   }
 };
 

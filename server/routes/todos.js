@@ -10,21 +10,16 @@ router.options('*', (req, res) => {
 });
 
 // GET /api/todos - Obtener todas las tareas del usuario autenticado
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const db = getDatabase();
-    const userId = req.user.id;
+    const { data: todos, error } = await supabase
+      .from('todos')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .order('created_at', { ascending: false });
 
-    db.all('SELECT * FROM todos WHERE user_id = ? ORDER BY created_at DESC', [userId], (err, rows) => {
-      if (err) {
-        res.status(500).json({ error: 'Error interno del servidor' });
-        return;
-      }
-
-      res.json(rows || []);
-    });
-
-    db.close();
+    if (error) throw error;
+    res.json(todos || []);
   } catch (error) {
     console.error('Error en GET /api/todos:', error);
     res.status(500).json({ error: 'Error interno del servidor', details: error.message });
@@ -81,79 +76,41 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // PUT /api/todos/:id - Actualizar una tarea
-router.put('/:id', authenticateToken, (req, res) => {
-  const { id } = req.params;
-  const { title, description, completed, priority, category } = req.body;
-  
-  const db = getDatabase();
-  const userId = req.user.id;
-  
-  // Construir la consulta dinámicamente basada en los campos proporcionados
-  const updates = [];
-  const values = [];
-  
-  if (title !== undefined) {
-    updates.push('title = ?');
-    values.push(title.trim());
-  }
-  
-  if (description !== undefined) {
-    updates.push('description = ?');
-    values.push(description.trim());
-  }
-  
-  if (completed !== undefined) {
-    updates.push('completed = ?');
-    values.push(completed ? 1 : 0);
-  }
-  
-  if (priority !== undefined) {
-    updates.push('priority = ?');
-    values.push(priority);
-  }
-  
-  if (category !== undefined) {
-    updates.push('category = ?');
-    values.push(category);
-  }
-  
-  if (updates.length === 0) {
-    res.status(400).json({ error: 'No hay campos para actualizar' });
-    db.close();
-    return;
-  }
-  
-  updates.push('updated_at = CURRENT_TIMESTAMP');
-  values.push(id);
-  
-  // Asegurar que la actualización sólo afecta a la tarea del usuario autenticado
-  const query = `UPDATE todos SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`;
-  values.push(userId);
+router.put('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, completed, priority, category } = req.body;
+    
+    const updates = {};
+    if (title !== undefined) updates.title = title.trim();
+    if (description !== undefined) updates.description = description.trim();
+    if (completed !== undefined) updates.completed = completed;
+    if (priority !== undefined) updates.priority = priority;
+    if (category !== undefined) updates.category = category;
+    
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No hay campos para actualizar' });
+    }
+    
+    updates.updated_at = new Date().toISOString();
 
-  db.run(query, values, function(err) {
-    if (err) {
-      res.status(500).json({ error: 'Error interno del servidor' });
-      return;
+    const { data: todo, error } = await supabase
+      .from('todos')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(404).json({ error: 'Tarea no encontrada' });
     }
-    
-    if (this.changes === 0) {
-      res.status(404).json({ error: 'Tarea no encontrada' });
-      return;
-    }
-    
-    // Obtener la tarea actualizada
-    db.get('SELECT * FROM todos WHERE id = ? AND user_id = ?', [id, userId], (err, row) => {
-      if (err) {
-        console.error('Error al obtener tarea actualizada:', err);
-        res.status(500).json({ error: 'Error interno del servidor' });
-        return;
-      }
-      
-      res.json(row);
-    });
-  });
-  
-  db.close();
+
+    res.json(todo);
+  } catch (error) {
+    console.error('Error en PUT /api/todos/:id:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 // DELETE /api/todos/:id - Eliminar una tarea
