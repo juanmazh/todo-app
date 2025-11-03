@@ -1,7 +1,6 @@
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
-const { getDatabase } = require('../database/connection');
 const { authenticateToken } = require('../middleware/auth');
+const supabase = require('../config/supabase');
 
 const router = express.Router();
 
@@ -33,67 +32,52 @@ router.get('/', authenticateToken, (req, res) => {
 });
 
 // GET /api/todos/:id - Obtener una tarea específica
-router.get('/:id', authenticateToken, (req, res) => {
-  const { id } = req.params;
-  const db = getDatabase();
-  const userId = req.user.id;
+router.get('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data: todo, error } = await supabase
+      .from('todos')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .single();
 
-  db.get('SELECT * FROM todos WHERE id = ? AND user_id = ?', [id, userId], (err, row) => {
-    if (err) {
-      res.status(500).json({ error: 'Error interno del servidor' });
-      return;
+    if (error) {
+      return res.status(404).json({ error: 'Tarea no encontrada' });
     }
 
-    if (!row) {
-      res.status(404).json({ error: 'Tarea no encontrada' });
-      return;
-    }
-
-    res.json(row);
-  });
-
-  db.close();
+    res.json(todo);
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 // POST /api/todos - Crear una nueva tarea
-router.post('/', authenticateToken, (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   const { title, description, priority = 'medium', category = 'general' } = req.body;
-  const userId = req.user.id;
 
   if (!title || title.trim() === '') {
-    res.status(400).json({ error: 'El título es requerido' });
-    return;
+    return res.status(400).json({ error: 'El título es requerido' });
   }
 
-  const id = uuidv4();
-  const db = getDatabase();
+  try {
+    const { data: todo, error } = await supabase
+      .from('todos')
+      .insert([{
+        title: title.trim(),
+        description: description?.trim() || '',
+        priority,
+        category,
+        user_id: req.user.id
+      }])
+      .select()
+      .single();
 
-  const stmt = db.prepare(`
-    INSERT INTO todos (id, title, description, priority, category, user_id)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(id, title.trim(), description?.trim() || '', priority, category, userId, function(err) {
-    if (err) {
-      res.status(500).json({ error: 'Error interno del servidor' });
-      return;
-    }
-
-    res.status(201).json({
-      id,
-      title: title.trim(),
-      description: description?.trim() || '',
-      completed: false,
-      priority,
-      category,
-      user_id: userId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    });
-  });
-
-  stmt.finalize();
-  db.close();
+    if (error) throw error;
+    res.status(201).json(todo);
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 // PUT /api/todos/:id - Actualizar una tarea
@@ -173,26 +157,23 @@ router.put('/:id', authenticateToken, (req, res) => {
 });
 
 // DELETE /api/todos/:id - Eliminar una tarea
-router.delete('/:id', authenticateToken, (req, res) => {
-  const { id } = req.params;
-  const userId = req.user.id;
-  const db = getDatabase();
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase
+      .from('todos')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', req.user.id);
 
-  db.run('DELETE FROM todos WHERE id = ? AND user_id = ?', [id, userId], function(err) {
-    if (err) {
-      res.status(500).json({ error: 'Error interno del servidor' });
-      return;
-    }
-
-    if (this.changes === 0) {
-      res.status(404).json({ error: 'Tarea no encontrada' });
-      return;
+    if (error) {
+      return res.status(404).json({ error: 'Tarea no encontrada' });
     }
 
     res.json({ message: 'Tarea eliminada correctamente' });
-  });
-
-  db.close();
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 module.exports = router;

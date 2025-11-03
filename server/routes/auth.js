@@ -1,8 +1,7 @@
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { getDatabase } = require('../database/connection');
+const supabase = require('../config/supabase');
 require('dotenv').config();
 
 const router = express.Router();
@@ -17,37 +16,41 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    const db = getDatabase();
-
     // Verificar si ya existe el usuario
-    db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
-      if (err) {
-        res.status(500).json({ error: 'Error interno del servidor' });
-        return;
-      }
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('username')
+      .eq('username', username)
+      .single();
 
-      if (row) {
-        res.status(409).json({ error: 'El usuario ya existe' });
-        db.close();
-        return;
-      }
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 es "no se encontró ningún resultado"
+      throw checkError;
+    }
 
-      const id = uuidv4();
-      const passwordHash = bcrypt.hashSync(password, 10);
+    if (existingUser) {
+      return res.status(409).json({ error: 'El usuario ya existe' });
+    }
 
-      const stmt = db.prepare('INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)');
-      stmt.run(id, username, passwordHash, function(insertErr) {
-        if (insertErr) {
-          res.status(500).json({ error: 'Error interno al crear usuario' });
-          return;
-        }
+    // Crear nuevo usuario
+    const passwordHash = await bcrypt.hash(password, 10);
+    
+    const { data: user, error: createError } = await supabase
+      .from('users')
+      .insert([{ username, password_hash: passwordHash }])
+      .select()
+      .single();
 
-        const token = jwt.sign({ id, username }, JWT_SECRET, { expiresIn: '7d' });
-        res.status(201).json({ token, user: { id, username } });
-      });
+    if (createError) throw createError;
 
-      stmt.finalize();
-      db.close();
+    const token = jwt.sign(
+      { id: user.id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      token,
+      user: { id: user.id, username: user.username }
     });
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -55,44 +58,43 @@ router.post('/register', async (req, res) => {
 });
 
 // Login: POST /api/auth/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { username, password } = req.body;
-
-
 
   if (!username || !password) {
     return res.status(400).json({ error: 'username y password son requeridos' });
   }
 
   try {
-    const db = getDatabase();
-    db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
-      if (err) {
-        res.status(500).json({ error: 'Error interno del servidor' });
-        db.close();
-        return;
-      }
+    // Buscar usuario por username
+    const { data: user, error: searchError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', username)
+      .single();
 
-      if (!user) {
-        res.status(401).json({ error: 'Credenciales inválidas' });
-        db.close();
-        return;
-      }
+    if (searchError) throw searchError;
 
-      const matches = bcrypt.compareSync(password, user.password_hash);
-      if (!matches) {
-        res.status(401).json({ error: 'Credenciales inválidas' });
-        db.close();
-        return;
-      }
+    if (!user) {
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
 
-      try {
-        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-        res.json({ token, user: { id: user.id, username: user.username } });
-      } catch (jwtErr) {
-        res.status(500).json({ error: 'Error generando token' });
-      }
-      db.close();
+    // Verificar contraseña
+    const matches = await bcrypt.compare(password, user.password_hash);
+    if (!matches) {
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
+
+    // Generar token
+    const token = jwt.sign(
+      { id: user.id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      token,
+      user: { id: user.id, username: user.username }
     });
   } catch (error) {
     res.status(500).json({ error: 'Error interno del servidor' });
