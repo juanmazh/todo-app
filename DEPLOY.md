@@ -26,7 +26,7 @@ Deployment checklist and steps for client-only app
 
 3) Supabase: apply RLS policies
 
-- Execute `server/database/supabase_policies.sql` (we've also placed it in `server/database/`) in the Supabase SQL editor to enable Row Level Security and policies that scope rows to `auth.uid()`.
+- Execute `database/setup.sql` in the Supabase SQL editor to create the todos table and enable Row Level Security with policies that scope rows to `auth.uid()`.
 
 4) Supabase: authentication / username mapping (if using username login)
 
@@ -35,16 +35,17 @@ Deployment checklist and steps for client-only app
   - "Enable signups" is ON.
   - "Allowed email domains" is either empty (allow all) or contains the derived domain you choose (e.g. `todo-app.local`).
 
-  If you change the allowed domains, retry registering from the client or re-run the local test script `node server/test_supabase_client.js`.
+  If you change the allowed domains, retry registering from the client.
 
 4) Testing
 
 - In an incognito window, register two different users and verify that each user only sees their own todos.
 - Try unauthorized API calls (without anon key or with missing session) to confirm access is denied.
 
-5) Optional cleanup
+5) Database setup
 
-- The original `server/` folder has been archived into `archive/server/` in this repo. If everything works in production, you can remove `archive/` or keep it for reference.
+- The application uses Supabase Auth for authentication and Supabase database for storage.
+- Run the SQL script in `database/setup.sql` in your Supabase SQL Editor to set up the database schema and RLS policies.
 
 6) Security reminders
 

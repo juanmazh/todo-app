@@ -1,8 +1,7 @@
 {
   "name": "todo-app",
   "version": "1.0.0",
-  "description": "Aplicación TO-DO moderna con Node.js y React",
-  "main": "server/index.js",
+  "description": "Aplicación TO-DO moderna con React y Supabase",
   "scripts": {
     "dev": "cd client && npm run dev",
     "client": "cd client && npm run dev",
@@ -13,14 +12,12 @@
   "keywords": [
     "todo",
     "react",
-    "nodejs",
-    "express"
+    "supabase",
+    "typescript"
   ],
   "author": "Tu nombre",
   "license": "MIT",
-  "dependencies": {
-    "@supabase/supabase-js": "^2.78.0"
-  },
+  "dependencies": {},
   "devDependencies": {},
   "engines": {
     "node": ">=16.0.0",

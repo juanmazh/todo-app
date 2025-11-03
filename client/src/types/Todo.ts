@@ -5,6 +5,7 @@ export interface Todo {
   completed: boolean;
   priority: 'low' | 'medium' | 'high';
   category: string;
+  user_id: string;
   created_at: string;
   updated_at: string;
 }

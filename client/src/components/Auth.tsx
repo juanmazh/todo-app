@@ -23,14 +23,14 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
         ? await authService.login(username, password)
         : await authService.register(username, password);
 
-      const { access_token, user } = data;
-      localStorage.setItem('token', access_token);
-      localStorage.setItem('user', JSON.stringify(user));
-      onAuth(user);
+      // La sesión de Supabase se maneja automáticamente
+      // Solo necesitamos pasar el usuario al callback
+      onAuth(data.user);
     } catch (err: any) {
       console.error('Auth error (detailed):', err);
-      const serverMsg = err?.response?.data?.error || err?.response?.data || null;
-      setError(serverMsg || err.message || 'Error en autenticación');
+      // Manejar errores de Supabase
+      const errorMessage = err?.message || err?.error_description || 'Error en autenticación';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -1,19 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseKey = import.meta.env.VITE_SUPABASE_KEY as string;
-
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false
-  }
-});
+import { supabase } from '../config/supabase';
 
 export const authService = {
-  // Register using email derived from username (keeps existing UX),
-  // but do NOT require the presence of a `users` table in the DB.
+  // Register using email derived from username (keeps existing UX)
   async register(username: string, password: string) {
     try {
       const domain = import.meta.env.VITE_USERNAME_EMAIL_DOMAIN || 'todo-app.local';
@@ -25,28 +13,27 @@ export const authService = {
       });
 
       if (signUpError) throw signUpError;
-      const userId = (data && (data as any).user) ? (data as any).user.id : null;
-
-      // Try to obtain the session (may require email confirmation depending on project settings)
+      
+      // Si el proyecto requiere confirmación de email, la sesión puede no estar disponible inmediatamente
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      
       if (sessionError) {
-        // Not fatal for register: user was created in Auth, but session might be unavailable
         console.warn('No session after signUp:', sessionError);
       }
 
-      // Store the minimal user info locally so the client can operate (id and username)
-      const storedId = userId || (sessionData && sessionData.session && sessionData.session.user ? sessionData.session.user.id : null);
-      if (storedId) {
-        localStorage.setItem('token', sessionData && sessionData.session ? sessionData.session.access_token : '');
-        localStorage.setItem('user', JSON.stringify({ id: storedId, username }));
+      const userId = data?.user?.id || sessionData?.session?.user?.id;
+      
+      if (!userId) {
+        throw new Error('No se pudo obtener el ID de usuario después del registro');
       }
 
+      // Guardar username en metadata para referencia (opcional)
+      // La sesión de Supabase se maneja automáticamente
       return {
         user: {
-          id: storedId,
+          id: userId,
           username
-        },
-        access_token: sessionData && sessionData.session ? sessionData.session.access_token : null
+        }
       };
     } catch (error) {
       console.error('Error en registro:', error);
@@ -65,15 +52,14 @@ export const authService = {
       });
 
       if (signInError) throw signInError;
-      if (!data || !data.session || !data.user) throw new Error('No session returned from Supabase');
+      if (!data || !data.session || !data.user) {
+        throw new Error('No session returned from Supabase');
+      }
 
-      // Save session token and an in-memory user object (username comes from the parameter)
-      localStorage.setItem('token', data.session.access_token);
-      localStorage.setItem('user', JSON.stringify({ id: data.user.id, username }));
-
+      // La sesión de Supabase se maneja automáticamente
+      // Solo guardamos el username para la UI
       return {
-        user: { id: data.user.id, username },
-        access_token: data.session.access_token
+        user: { id: data.user.id, username }
       };
     } catch (error) {
       console.error('Error en login:', error);
@@ -81,9 +67,28 @@ export const authService = {
     }
   },
 
-  logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    supabase.auth.signOut();
+  async logout() {
+    await supabase.auth.signOut();
+  },
+
+  // Obtener la sesión actual
+  async getSession() {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    return session;
+  },
+
+  // Obtener el usuario actual
+  async getCurrentUser() {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    return user;
+  },
+
+  // Escuchar cambios en la autenticación
+  onAuthStateChange(callback: (event: string, session: any) => void) {
+    return supabase.auth.onAuthStateChange((event, session) => {
+      callback(event, session);
+    });
   }
 };

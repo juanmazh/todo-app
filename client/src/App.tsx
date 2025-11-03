@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search } from 'lucide-react';
 import TodoList from './components/TodoList';
@@ -8,6 +8,8 @@ import Footer from './components/Footer';
 import Auth from './components/Auth';
 import type { Todo } from './types/Todo';
 import { todoService } from './services/todoService';
+import { authService } from './services/authService';
+import { supabase } from './config/supabase';
 import './App.css';
 
 function App() {
@@ -24,29 +26,7 @@ function App() {
     search: ''
   });
 
-  // Cargar tareas al montar el componente
-  useEffect(() => {
-    // Cargar sesión si existe
-    const rawUser = localStorage.getItem('user');
-    const rawToken = localStorage.getItem('token');
-    if (rawUser && rawToken) {
-      try {
-        setUser(JSON.parse(rawUser));
-      } catch (e) {
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-      }
-    }
-
-    loadTodos();
-  }, []);
-
-  // Filtrar tareas cuando cambien los filtros o las tareas
-  useEffect(() => {
-    filterTodos();
-  }, [todos, filter]);
-
-  const loadTodos = async () => {
+  const loadTodos = useCallback(async () => {
     try {
       setLoading(true);
       const data = await todoService.getAllTodos();
@@ -56,7 +36,58 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Cargar sesión de Supabase al montar el componente
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Obtener el username del email (extraer la parte antes del @)
+          const email = session.user.email || '';
+          const username = email.split('@')[0] || 'usuario';
+          setUser({
+            id: session.user.id,
+            username
+          });
+          await loadTodos();
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error al verificar sesión:', error);
+        setLoading(false);
+      }
+    };
+
+    checkSession();
+
+    // Escuchar cambios en la autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        const email = session.user.email || '';
+        const username = email.split('@')[0] || 'usuario';
+        setUser({
+          id: session.user.id,
+          username
+        });
+        await loadTodos();
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setTodos([]);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [loadTodos]);
+
+  // Filtrar tareas cuando cambien los filtros o las tareas
+  useEffect(() => {
+    filterTodos();
+  }, [todos, filter]);
 
   const filterTodos = () => {
     let filtered = [...todos];
@@ -105,11 +136,14 @@ function App() {
     loadTodos(); // Cargar tareas del usuario tras login
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-    setTodos([]);
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      setUser(null);
+      setTodos([]);
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
   };
 
   const handleUpdateTodo = async (id: string, updates: Partial<Todo>) => {

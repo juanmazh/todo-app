@@ -1,25 +1,19 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../config/supabase';
 import type { Todo, TodoFormData } from '../types/Todo';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_KEY;
-
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false
-  }
-});
 
 export const todoService = {
   // Obtener todas las tareas
+  // Las RLS policies de Supabase filtran automáticamente por auth.uid()
   async getAllTodos(): Promise<Todo[]> {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    // Verificar que hay una sesión activa
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('No hay sesión activa. Por favor, inicia sesión.');
+    }
+
     const { data, error } = await supabase
       .from('todos')
       .select('*')
-      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -28,12 +22,15 @@ export const todoService = {
 
   // Obtener una tarea por ID
   async getTodoById(id: string): Promise<Todo> {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('No hay sesión activa. Por favor, inicia sesión.');
+    }
+
     const { data, error } = await supabase
       .from('todos')
       .select('*')
       .eq('id', id)
-      .eq('user_id', user.id)
       .single();
 
     if (error) throw error;
@@ -43,12 +40,18 @@ export const todoService = {
 
   // Crear una nueva tarea
   async createTodo(todoData: TodoFormData): Promise<Todo> {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.user) {
+      throw new Error('No hay sesión activa. Por favor, inicia sesión.');
+    }
+
+    // Usar auth.uid() que es manejado automáticamente por Supabase
+    // Las RLS policies verifican que user_id = auth.uid()
     const { data, error } = await supabase
       .from('todos')
       .insert([{
         ...todoData,
-        user_id: user.id
+        user_id: session.user.id
       }])
       .select()
       .single();
@@ -60,12 +63,16 @@ export const todoService = {
 
   // Actualizar una tarea
   async updateTodo(id: string, updates: Partial<Todo>): Promise<Todo> {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('No hay sesión activa. Por favor, inicia sesión.');
+    }
+
+    // Las RLS policies solo permiten actualizar tus propias tareas
     const { data, error } = await supabase
       .from('todos')
       .update(updates)
       .eq('id', id)
-      .eq('user_id', user.id)
       .select()
       .single();
 
@@ -76,12 +83,16 @@ export const todoService = {
 
   // Eliminar una tarea
   async deleteTodo(id: string): Promise<void> {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('No hay sesión activa. Por favor, inicia sesión.');
+    }
+
+    // Las RLS policies solo permiten eliminar tus propias tareas
     const { error } = await supabase
       .from('todos')
       .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('id', id);
 
     if (error) throw error;
   },
