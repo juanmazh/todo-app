@@ -23,14 +23,35 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
         ? await authService.login(username, password)
         : await authService.register(username, password);
 
-      const { token, user } = data;
-  localStorage.setItem('token', token);
-  localStorage.setItem('user', JSON.stringify(user));
-  onAuth(user);
+      // La sesión de Supabase se maneja automáticamente
+      // Solo necesitamos pasar el usuario al callback
+      onAuth(data.user);
     } catch (err: any) {
       console.error('Auth error (detailed):', err);
-      const serverMsg = err?.response?.data?.error || err?.response?.data || null;
-      setError(serverMsg || err.message || 'Error en autenticación');
+      
+      // Manejar errores de Supabase específicos
+      let errorMessage = 'Error en autenticación';
+      
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.error_description) {
+        errorMessage = err.error_description;
+      } else if (err?.error) {
+        errorMessage = err.error;
+      }
+      
+      // Mensajes más amigables para errores comunes
+      if (errorMessage.includes('Invalid login credentials')) {
+        errorMessage = 'Usuario o contraseña incorrectos';
+      } else if (errorMessage.includes('User already registered')) {
+        errorMessage = 'Este usuario ya está registrado';
+      } else if (errorMessage.includes('Email rate limit exceeded')) {
+        errorMessage = 'Demasiados intentos. Por favor, espera un momento';
+      } else if (errorMessage.includes('Network') || errorMessage.includes('fetch')) {
+        errorMessage = 'Error de conexión. Verifica tu conexión a internet';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
