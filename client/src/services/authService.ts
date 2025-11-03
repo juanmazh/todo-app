@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseKey = import.meta.env.VITE_SUPABASE_KEY as string;
 
 const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
@@ -12,56 +12,41 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 });
 
 export const authService = {
+  // Register using email derived from username (keeps existing UX),
+  // but do NOT require the presence of a `users` table in the DB.
   async register(username: string, password: string) {
     try {
-      // Verificar si el usuario ya existe
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('username')
-        .eq('username', username)
-        .single();
+      const domain = import.meta.env.VITE_USERNAME_EMAIL_DOMAIN || 'todo-app.local';
+      const derivedEmail = `${username}@${domain}`;
 
-      if (existingUser) {
-        throw new Error('El usuario ya existe');
-      }
-
-      // Registrar usuario en Supabase Auth
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email: `${username}@example.com`,
-        password: password
+        email: derivedEmail,
+        password
       });
 
-      if (signUpError || !data.user) throw signUpError || new Error('Error al crear usuario');
+      if (signUpError) throw signUpError;
+      const userId = (data && (data as any).user) ? (data as any).user.id : null;
 
-      // Crear registro en la tabla users
-      const { data: newUser, error: insertError } = await supabase
-        .from('users')
-        .insert([{
-          id: data.user.id,
-          username: username,
-          created_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
-
-      if (insertError || !newUser) throw insertError || new Error('Error al crear usuario en la base de datos');
-
-      // Obtener la sesión
+      // Try to obtain the session (may require email confirmation depending on project settings)
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !sessionData.session) throw sessionError || new Error('Error al obtener la sesión');
+      if (sessionError) {
+        // Not fatal for register: user was created in Auth, but session might be unavailable
+        console.warn('No session after signUp:', sessionError);
+      }
 
-      localStorage.setItem('token', sessionData.session.access_token);
-      localStorage.setItem('user', JSON.stringify({
-        id: newUser.id,
-        username: newUser.username
-      }));
+      // Store the minimal user info locally so the client can operate (id and username)
+      const storedId = userId || (sessionData && sessionData.session && sessionData.session.user ? sessionData.session.user.id : null);
+      if (storedId) {
+        localStorage.setItem('token', sessionData && sessionData.session ? sessionData.session.access_token : '');
+        localStorage.setItem('user', JSON.stringify({ id: storedId, username }));
+      }
 
       return {
         user: {
-          id: newUser.id,
-          username: newUser.username
+          id: storedId,
+          username
         },
-        access_token: sessionData.session.access_token
+        access_token: sessionData && sessionData.session ? sessionData.session.access_token : null
       };
     } catch (error) {
       console.error('Error en registro:', error);
@@ -71,36 +56,23 @@ export const authService = {
 
   async login(username: string, password: string) {
     try {
-      // Iniciar sesión en Supabase
+      const domain = import.meta.env.VITE_USERNAME_EMAIL_DOMAIN || 'todo-app.local';
+      const derivedEmail = `${username}@${domain}`;
+
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: `${username}@example.com`,
-        password: password
+        email: derivedEmail,
+        password
       });
 
-      if (signInError || !data.session || !data.user) {
-        throw new Error('Credenciales inválidas');
-      }
+      if (signInError) throw signInError;
+      if (!data || !data.session || !data.user) throw new Error('No session returned from Supabase');
 
-      // Obtener datos del usuario
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, username')
-        .eq('id', data.user.id)
-        .single();
-
-      if (userError || !userData) throw userError || new Error('Usuario no encontrado');
-
+      // Save session token and an in-memory user object (username comes from the parameter)
       localStorage.setItem('token', data.session.access_token);
-      localStorage.setItem('user', JSON.stringify({
-        id: userData.id,
-        username: userData.username
-      }));
+      localStorage.setItem('user', JSON.stringify({ id: data.user.id, username }));
 
       return {
-        user: {
-          id: userData.id,
-          username: userData.username
-        },
+        user: { id: data.user.id, username },
         access_token: data.session.access_token
       };
     } catch (error) {

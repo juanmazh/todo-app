@@ -45,38 +45,32 @@ Una aplicación moderna de gestión de tareas construida con **Node.js**, **Expr
    cd todo-app
    ```
 
-2. **Instalar dependencias del servidor**
-   ```bash
-   npm install
-   ```
-
-3. **Instalar dependencias del cliente**
+2. **Instalar dependencias del cliente**
    ```bash
    cd client
    npm install
    cd ..
    ```
 
-4. **Configurar variables de entorno**
-   ```bash
-   # Crear archivo .env en la raíz del proyecto
-   PORT=5000
-   NODE_ENV=development
+3. **Configurar variables de entorno para producción**
+   - Crea `client/.env` (o configura variables en tu host) con las claves públicas de Supabase:
+   ```env
+   VITE_SUPABASE_URL=https://<your-project>.supabase.co
+   VITE_SUPABASE_KEY=<PUBLIC_ANON_KEY>
    ```
 
-5. **Ejecutar la aplicación**
+4. **Ejecutar la aplicación en desarrollo**
    ```bash
-   # Ejecutar servidor y cliente simultáneamente
    npm run dev
-   
-   # O ejecutar por separado:
-   # Terminal 1: npm run server
-   # Terminal 2: npm run client
    ```
 
-6. **Acceder a la aplicación desplegada en vercel**
-   - Frontend: https://todo-app-frontend-c81g.onrender.com/
-   - Backend API: https://todo-app-backend-yadb.onrender.com
+5. **Construir para producción**
+   ```bash
+   npm run build
+   ```
+
+6. **Despliegue (ejemplos)**
+   - Netlify / Vercel / Render (Static): sube el contenido de `client/dist` o configura el build command `npm run build` y el directorio de publicación `client/dist`.
 
 ## 📁 Estructura del Proyecto
 
@@ -169,21 +163,23 @@ Los colores se definen en variables CSS en `client/src/App.css`:
 ### Animaciones
 Las animaciones se configuran usando Framer Motion en los componentes React.
 
-## 🚀 Despliegue
+## 🚀 Despliegue (client-only)
 
 ### Desarrollo
 ```bash
 npm run dev
 ```
 
-### Producción
+### Producción (static hosting)
 ```bash
 # Construir el cliente
 npm run build
 
-# Ejecutar en producción
-npm start
-```
+# Subir `client/dist` a tu host estático (Netlify/Vercel/Render)
+``` 
+
+### Supabase RLS
+Ejecuta `server/database/supabase_policies.sql` en el SQL editor de Supabase para aplicar las políticas de Row Level Security que aseguran que cada usuario sólo pueda acceder a sus propios datos.
 
 ## 🤝 Contribución
 
