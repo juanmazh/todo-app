@@ -28,8 +28,29 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
       onAuth(data.user);
     } catch (err: any) {
       console.error('Auth error (detailed):', err);
-      // Manejar errores de Supabase
-      const errorMessage = err?.message || err?.error_description || 'Error en autenticación';
+      
+      // Manejar errores de Supabase específicos
+      let errorMessage = 'Error en autenticación';
+      
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.error_description) {
+        errorMessage = err.error_description;
+      } else if (err?.error) {
+        errorMessage = err.error;
+      }
+      
+      // Mensajes más amigables para errores comunes
+      if (errorMessage.includes('Invalid login credentials')) {
+        errorMessage = 'Usuario o contraseña incorrectos';
+      } else if (errorMessage.includes('User already registered')) {
+        errorMessage = 'Este usuario ya está registrado';
+      } else if (errorMessage.includes('Email rate limit exceeded')) {
+        errorMessage = 'Demasiados intentos. Por favor, espera un momento';
+      } else if (errorMessage.includes('Network') || errorMessage.includes('fetch')) {
+        errorMessage = 'Error de conexión. Verifica tu conexión a internet';
+      }
+      
       setError(errorMessage);
     } finally {
       setLoading(false);
