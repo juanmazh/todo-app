@@ -18,8 +18,7 @@ router.get('/', authenticateToken, (req, res) => {
 
     db.all('SELECT * FROM todos WHERE user_id = ? ORDER BY created_at DESC', [userId], (err, rows) => {
       if (err) {
-        console.error('Error al obtener tareas:', err);
-        res.status(500).json({ error: 'Error interno del servidor', details: err.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
         return;
       }
 
@@ -41,7 +40,6 @@ router.get('/:id', authenticateToken, (req, res) => {
 
   db.get('SELECT * FROM todos WHERE id = ? AND user_id = ?', [id, userId], (err, row) => {
     if (err) {
-      console.error('Error al obtener tarea:', err);
       res.status(500).json({ error: 'Error interno del servidor' });
       return;
     }
@@ -77,7 +75,6 @@ router.post('/', authenticateToken, (req, res) => {
 
   stmt.run(id, title.trim(), description?.trim() || '', priority, category, userId, function(err) {
     if (err) {
-      console.error('Error al crear tarea:', err);
       res.status(500).json({ error: 'Error interno del servidor' });
       return;
     }
@@ -151,7 +148,6 @@ router.put('/:id', authenticateToken, (req, res) => {
 
   db.run(query, values, function(err) {
     if (err) {
-      console.error('Error al actualizar tarea:', err);
       res.status(500).json({ error: 'Error interno del servidor' });
       return;
     }
@@ -184,7 +180,6 @@ router.delete('/:id', authenticateToken, (req, res) => {
 
   db.run('DELETE FROM todos WHERE id = ? AND user_id = ?', [id, userId], function(err) {
     if (err) {
-      console.error('Error al eliminar tarea:', err);
       res.status(500).json({ error: 'Error interno del servidor' });
       return;
     }

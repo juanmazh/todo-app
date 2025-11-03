@@ -22,7 +22,6 @@ router.post('/register', async (req, res) => {
     // Verificar si ya existe el usuario
     db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
       if (err) {
-        console.error('Error en registro:', err);
         res.status(500).json({ error: 'Error interno del servidor' });
         return;
       }
@@ -39,7 +38,6 @@ router.post('/register', async (req, res) => {
       const stmt = db.prepare('INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)');
       stmt.run(id, username, passwordHash, function(insertErr) {
         if (insertErr) {
-          console.error('Error al crear usuario:', insertErr);
           res.status(500).json({ error: 'Error interno al crear usuario' });
           return;
         }
@@ -52,7 +50,6 @@ router.post('/register', async (req, res) => {
       db.close();
     });
   } catch (error) {
-    console.error('Error en POST /auth/register:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
@@ -61,7 +58,7 @@ router.post('/register', async (req, res) => {
 router.post('/login', (req, res) => {
   const { username, password } = req.body;
 
-  console.log('🔐 POST /api/auth/login - body:', req.body);
+
 
   if (!username || !password) {
     return res.status(400).json({ error: 'username y password son requeridos' });
@@ -71,7 +68,6 @@ router.post('/login', (req, res) => {
     const db = getDatabase();
     db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
       if (err) {
-        console.error('Error en login:', err);
         res.status(500).json({ error: 'Error interno del servidor' });
         db.close();
         return;
@@ -94,13 +90,11 @@ router.post('/login', (req, res) => {
         const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
         res.json({ token, user: { id: user.id, username: user.username } });
       } catch (jwtErr) {
-        console.error('Error generando JWT en login:', jwtErr);
         res.status(500).json({ error: 'Error generando token' });
       }
       db.close();
     });
   } catch (error) {
-    console.error('Error en POST /auth/login:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

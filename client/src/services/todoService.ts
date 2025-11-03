@@ -12,24 +12,19 @@ const getApiUrl = () => {
   // Normalizar la URL: eliminar slashes finales y asegurar que termine en /api.
   const rawEnvUrl = import.meta.env.VITE_API_URL;
   if (rawEnvUrl) {
-    // Eliminar slashes finales
     const trimmed = rawEnvUrl.replace(/\/+$/g, '');
     const normalized = trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
-    console.info('🔧 VITE_API_URL (raw):', rawEnvUrl, '→ normalized:', normalized);
     return normalized;
   }
-
-  console.warn('⚠️ VITE_API_URL no está definida. Usando URL por defecto de fallback. Por favor configura VITE_API_URL en Vercel/entorno de producción.');
   return 'https://todo-app-backend-yadb.onrender.com/api';
 };
 
 const API_BASE_URL = getApiUrl();
 
-// Normalizar la URL base (debería incluir /api ya si VITE_API_URL fue configurada)
+// Normalizar la URL base (debería incluir /api ya 
 const AXIOS_BASE_URL = (API_BASE_URL || '').replace(/\/+$/g, '');
 
-console.log('🔗 API URL configurada (raw):', API_BASE_URL);
-console.log('🔧 AXIOS base URL normalizada:', AXIOS_BASE_URL);
+
 
 const api = axios.create({
   baseURL: AXIOS_BASE_URL,
