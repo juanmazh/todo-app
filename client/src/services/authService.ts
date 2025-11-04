@@ -68,7 +68,14 @@ export const authService = {
   },
 
   async logout() {
+    // Cerrar sesión en Supabase y limpiar cualquier rastro legado
     await supabase.auth.signOut();
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    } catch {
+      // ignore storage errors
+    }
   },
 
   // Obtener la sesión actual
